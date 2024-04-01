@@ -4,12 +4,19 @@ const cors = require("cors");
 const app = express();
 const dns = require("dns");
 const bodyParser = require("body-parser");
-
+const mongoose = require("mongoose");
+mongoose.connect("mongodb://localhost:27017");
 // Basic Configuration
 const port = process.env.PORT || 3000;
+const urlSchema = new mongoose.Schema({
+  original_url: String,
+  short_url: String,
+});
+const Url = mongoose.model("urls", urlSchema);
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use("/public", express.static(`${process.cwd()}/public`));
 
@@ -25,25 +32,27 @@ app.get("/api/hello", function (req, res) {
 app.post(
   "/api/shorturl",
   (req, res, next) => {
-    dns.lookup(
-      "www.t.com",
-      { family: 6, all: true },
-      (err, address, family) => {
-        if (err) {
-          res.json({ error: "invalid url" });
-          console.log("err: ", err);
-        } else {
-          console.log("address: %j", address);
-          console.log("family: %j", family);
-          next();
-        }
+    dns.lookup(req.body.url, { all: true }, (err, address, family) => {
+      if (err) {
+        res.json({ error: "invalid url" });
+      } else {
+        next();
       }
-    );
+    });
   },
   (req, res) => {
-    res.json({ test: "finish" });
+    const list = Urls.find({});
+    const newUrl = { original_url: req.body, short_url: list.length + 1 };
+    Url(newUrl).save();
+    res.json(newUrl);
   }
 );
+app.get("api/shorturl/:short_url", (req, res) => {
+  const url = Url.findOne({
+    short_url: req.params.short_url,
+  });
+  res.redirect(url.original_url);
+});
 app.listen(port, function () {
   console.log(`Listening on port ${port}`);
 });
