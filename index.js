@@ -25,22 +25,20 @@ app.get("/api/hello", function (req, res) {
 app.post(
   "/api/shorturl",
   (req, res, next) => {
-    console.log(req.body);
-    next();
-    // dns.lookup(
-    //   "www.t.com",
-    //   { family: 6, all: true },
-    //   (err, address, family) => {
-    //     if (err) {
-    //       res.json({ error: "invalid url" });
-    //       console.log("err: ", err);
-    //     } else {
-    //       console.log("address: %j", address);
-    //       console.log("family: %j", family);
-    //       next();
-    //     }
-    //   }
-    // );
+    dns.lookup(
+      "www.t.com",
+      { family: 6, all: true },
+      (err, address, family) => {
+        if (err) {
+          res.json({ error: "invalid url" });
+          console.log("err: ", err);
+        } else {
+          console.log("address: %j", address);
+          console.log("family: %j", family);
+          next();
+        }
+      }
+    );
   },
   (req, res) => {
     res.json({ test: "finish" });
