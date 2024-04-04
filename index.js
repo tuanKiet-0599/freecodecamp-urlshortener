@@ -4,15 +4,13 @@ const cors = require("cors");
 const app = express();
 const dns = require("dns");
 const bodyParser = require("body-parser");
-const mongoose = require("mongoose");
-mongoose.connect("mongodb://localhost:27017");
+const { MongoClient } = require("mongodb");
+
 // Basic Configuration
 const port = process.env.PORT || 3000;
-const urlSchema = new mongoose.Schema({
-  original_url: String,
-  short_url: String,
-});
-const Url = mongoose.model("urls", urlSchema);
+const client = new MongoClient("mongodb://localhost:27017");
+const db = client.db("url-shortener");
+const urls = db.collection("urls");
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -32,7 +30,7 @@ app.get("/api/hello", function (req, res) {
 app.post(
   "/api/shorturl",
   (req, res, next) => {
-    dns.lookup(req.body.url, { all: true }, (err, address, family) => {
+    dns.lookup(req.body.url, { all: true }, (err, address) => {
       if (err) {
         res.json({ error: "invalid url" });
       } else {
@@ -40,17 +38,20 @@ app.post(
       }
     });
   },
-  (req, res) => {
-    const list = Urls.find({});
-    const newUrl = { original_url: req.body, short_url: list.length + 1 };
-    Url(newUrl).save();
+  async (req, res) => {
+    const listRange = await urls.countDocuments();
+    const newUrl = {
+      original_url: req.body.url,
+      short_url: listRange,
+    };
+    await urls.insertOne(newUrl);
+    delete newUrl._id;
     res.json(newUrl);
   }
 );
-app.get("api/shorturl/:short_url", (req, res) => {
-  const url = Url.findOne({
-    short_url: req.params.short_url,
-  });
+app.get("api/shorturl/:short_url", async (req, res) => {
+  console.log(req.params.short_url);
+  const url = await urls.findOne({ short_url: +req.params.short_url });
   res.redirect(url.original_url);
 });
 app.listen(port, function () {
